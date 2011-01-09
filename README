@@ -1,0 +1,6 @@
+You probably want to make the Tellstick show up under a specific /dev/
+name instead of ttyUSB*.  Use the following to have it be named
+/dev/tellstick.
+
+[larsi@quimbies ~]$ cat /etc/udev/rules.d/10-tellstick.rules 
+KERNEL=="ttyUSB*", BUS=="usb", SYSFS{idVendor}=="1781", SYSFS{idProduct}=="0c30", MODE="0666", NAME="tellstick"
