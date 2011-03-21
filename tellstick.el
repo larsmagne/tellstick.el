@@ -36,6 +36,8 @@
 (defvar tellstick-room-code 31132
   "The code you're using for your units.")
 
+(defvar tellstick-non-dimmers '(1 3 14 15 16))
+
 ;;; Somewhat bogus semaphores.
 
 (defvar tellstick-semaphore '(nil))
@@ -214,15 +216,20 @@
 		    '(10 9 11))
 		   ((eq room 'kitchen)
 		    '(3 1))
+		   ((eq room 'office)
+		    '(14 15 16))
 		   ((or (eq room 'living)
-		       (eq room :living))
+			(eq room :living))
 		    '(4 5 6 8))
 		   ((eq room 'bedroom)
 		    '(2))))
-	(push (tellstick-make-command tellstick-room-code id action
-				      (and (eq action 'on)
-					   (not (member id '(1 3)))
-					   15))
+	(push (tellstick-make-command
+	       tellstick-room-code id action
+	       (and (eq action 'on)
+		    ;; If it's a dimmer, we have to send the signal
+		    ;; strength.
+		    (not (member id tellstick-non-dimmers))
+		    15))
 	      strings)))
     (apply #'tellstick-send strings)))
 
