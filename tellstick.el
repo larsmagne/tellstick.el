@@ -81,6 +81,11 @@
    "+"))
 
 (defun tellstick-format-command (house unit command dim)
+  ;; There can be only 16 units per puny house.  If we get a unit code
+  ;; higher than 16, then continue on to the next house code.
+  (when (> unit 16)
+    (setq house (+ house (/ unit 16))
+	  unit (mod unit 16)))
   (concat
    (tellstick-double-binarify house 26)
    "01"
@@ -216,13 +221,15 @@
 		    '(10 9 11))
 		   ((eq room 'kitchen)
 		    '(3 1))
+		   ((eq room 'hall)
+		    '(17))
 		   ((eq room 'office)
 		    '(14 15 16))
 		   ((or (eq room 'living)
 			(eq room :living))
 		    '(4 5 6 8))
 		   ((eq room 'bedroom)
-		    '(2))))
+		    '(2 12))))
 	(push (tellstick-make-command
 	       tellstick-room-code id action
 	       (and (eq action 'on)
