@@ -28,6 +28,12 @@
 ;;   (tellstick-make-command tellstick-room-code 10 'on nil))
 ;;
 ;; This switches unit 10 on, without using dimming.
+;;
+;; To make a device learn that it's device 10 in room code 2342, say
+;;
+;; (tellstick-learn 2342 10)
+;;
+;; after putting the device in learning state.
 
 ;;; Code:
 
