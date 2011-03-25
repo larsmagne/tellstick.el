@@ -68,7 +68,9 @@
   (concat
    (with-temp-buffer
      (insert "R")
-     (insert-byte 5 1)
+     (insert-byte (if (eq command 'learn)
+		      2 5)
+		  1)
      (insert "T")
      (insert-byte 127 1)
      (insert-byte 255 1)
@@ -79,6 +81,12 @@
    (tellstick-encode-command
     (tellstick-format-command house unit command dim))
    "+"))
+
+(defun tellstick-learn (house unit)
+  (dotimes (i 5)
+    (tellstick-send
+     (tellstick-make-command house unit 'learn nil))
+    (sit-for 0.2)))
 
 (defun tellstick-format-command (house unit command dim)
   ;; There can be only 16 units per puny house.  If we get a unit code
