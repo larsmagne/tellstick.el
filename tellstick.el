@@ -89,6 +89,8 @@
    "+"))
 
 (defun tellstick-learn (house unit)
+  ;; Apparently you need to send the learning code about five times
+  ;; for the device to pick it up.
   (dotimes (i 5)
     (tellstick-send
      (tellstick-make-command house unit 'learn nil))
@@ -236,7 +238,7 @@
 		   ((eq room 'kitchen)
 		    '(3 1))
 		   ((eq room 'hall)
-		    '(17))
+		    '(17 13))
 		   ((eq room 'office)
 		    '(14 15 16))
 		   ((or (eq room 'living)
