@@ -221,7 +221,13 @@
 
 (defun tellstick-switch-id (id action &optional dim)
   (tellstick-send
-   (tellstick-make-command tellstick-room-code id action dim)))
+   (tellstick-make-command
+    tellstick-room-code id action
+    (and (eq action 'on)
+	 ;; If it's a dimmer, we have to send the signal
+	 ;; strength.
+	 (not (member id tellstick-non-dimmers))
+	 15))))
 
 (defun tellstick-switch-room (rooms action)
   (when (eq action :off)
@@ -234,11 +240,11 @@
     (dolist (room rooms)
       (dolist (id (cond
 		   ((eq room 'tv)
-		    '(10 9 11))
+		    '(10 9 17))
 		   ((eq room 'kitchen)
 		    '(3 1))
 		   ((eq room 'hall)
-		    '(17 13))
+		    '(11 13))
 		   ((eq room 'office)
 		    '(14 15 16))
 		   ((or (eq room 'living)
