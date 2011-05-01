@@ -220,6 +220,11 @@
       result)))
 
 (defun tellstick-switch-id (id action &optional dim)
+  (when (numberp action)
+    (setq action
+	  (if (zerop action)
+	      'off
+	    'on)))
   (tellstick-send
    (tellstick-make-command
     tellstick-room-code id action
