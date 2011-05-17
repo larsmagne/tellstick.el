@@ -42,7 +42,7 @@
 (defvar tellstick-room-code 31132
   "The code you're using for your units.")
 
-(defvar tellstick-non-dimmers '(1 3 14 15 16))
+(defvar tellstick-non-dimmers '(1 3 14 15 16 21 22 23))
 
 ;;; Somewhat bogus semaphores.
 
@@ -251,7 +251,7 @@
 		   ((eq room 'hall)
 		    '(11 13))
 		   ((eq room 'office)
-		    '(14 15 16))
+		    '(14 15 16 21 22))
 		   ((or (eq room 'living)
 			(eq room :living))
 		    '(4 5 6 8))
