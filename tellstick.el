@@ -39,10 +39,14 @@
 
 (require 'cl)
 
-(defvar tellstick-room-code 31132
+(defvar tellstick-room-code 1
   "The code you're using for your units.")
 
-(defvar tellstick-non-dimmers '(1 3 14 15 16 21 22 23))
+(defvar tellstick-non-dimmers nil)
+
+(defvar tellstick-model 'uno
+  "The model plugged in.
+Valid values are `uno' (the classic stick) and `duo'.")
 
 ;;; Somewhat bogus semaphores.
 
@@ -202,7 +206,9 @@
   (with-temp-buffer
     (let ((process (make-serial-process
 		    :port "/dev/tellstick"
-		    :speed 4800
+		    :speed (if (eq tellstick-model 'duo)
+			       9600
+			     4800)
 		    :coding 'no-conversion
 		    :buffer (current-buffer)))
 	  result)
@@ -249,14 +255,14 @@
 		   ((eq room 'kitchen)
 		    '(3 1))
 		   ((eq room 'hall)
-		    '(11 13))
+		    '(19 13))
 		   ((eq room 'office)
 		    '(14 15 16 21 22))
 		   ((or (eq room 'living)
 			(eq room :living))
-		    '(4 5 6 8))
+		    '(4 5 8 18))
 		   ((eq room 'bedroom)
-		    '(2 12))))
+		    '(2 6 12))))
 	(push (tellstick-make-command
 	       tellstick-room-code id action
 	       (and (eq action 'on)
