@@ -42,6 +42,9 @@
 (defvar tellstick-room-code 1
   "The code you're using for your units.")
 
+(defvar tellstick-actions nil
+  "Actions to be evaled when a command is read.")
+
 (defvar tellstick-non-dimmers nil)
 
 (defvar tellstick-model 'uno
@@ -93,6 +96,9 @@ Valid values are `uno' (the classic stick) and `duo'.")
    "+"))
 
 (defun tellstick-learn (house unit)
+  (when (> unit 16)
+    (setq house (+ house (/ unit 16))
+	  unit (mod unit 16)))
   ;; Apparently you need to send the learning code about five times
   ;; for the device to pick it up.
   (dotimes (i 5)
@@ -175,11 +181,15 @@ Valid values are `uno' (the classic stick) and `duo'.")
 
 (defun tellstick-send (&rest commands)
   (tellstick-with-semaphore
-    (if (fboundp 'make-serial-process)
-	(apply #'tellstick-send-serial commands)
-      (apply #'tellstick-send-cu commands))))
+    (cond
+     (tellstick-process
+      (tellstick-send-process tellstick-process commands))
+     ((fboundp 'make-serial-process)
+      (tellstick-send-serial commands))
+     (t
+      (tellstick-send-cu commands)))))
 
-(defun tellstick-send-cu (&rest commands)
+(defun tellstick-send-cu (commands)
   (with-temp-buffer
     (let ((process (start-process
 		    "tellstick"
@@ -202,7 +212,7 @@ Valid values are `uno' (the classic stick) and `duo'.")
 	(when (file-exists-p "/var/lock/LCK..tellstick")
 	  (delete-file "/var/lock/LCK..tellstick"))))))
 
-(defun tellstick-send-serial (&rest commands)
+(defun tellstick-send-serial (commands)
   (with-temp-buffer
     (let ((process (make-serial-process
 		    :port "/dev/tellstick"
@@ -212,18 +222,62 @@ Valid values are `uno' (the classic stick) and `duo'.")
 		    :coding 'no-conversion
 		    :buffer (current-buffer)))
 	  result)
-      (dolist (command commands)
-	(process-send-string process command)
-	(while (not (save-excursion
-		      (goto-char (point-min))
-		      (search-forward "\r" nil t)))
-	  (accept-process-output process 0 100)
-	  ;;(message "Got: %s" (buffer-string))
-	  )
-	(setq result (buffer-string))
-	(erase-buffer))
+      (tellstick-send-process process commands)
       (delete-process process)
       result)))
+
+(defun tellstick-send-process (process commands)
+  (with-current-buffer (process-buffer process)
+    (dolist (command commands)
+      (erase-buffer)
+      (process-send-string process command)
+      (while (not (save-excursion
+		    (goto-char (point-min))
+		    (search-forward "+T\r" nil t)))
+	(accept-process-output process 0 100)))
+    (buffer-string)))
+
+(defvar tellstick-process nil)
+
+(defun tellstick-start-reading ()
+  (save-excursion
+    (set-buffer (get-buffer-create "*tellstick*"))
+    (buffer-disable-undo)
+    (erase-buffer)
+    (setq tellstick-process
+	  (make-serial-process
+	   :port "/dev/tellstick"
+	   :speed 9600
+	   :coding 'no-conversion
+	   :buffer (current-buffer)))
+    (set-process-filter tellstick-process 'tellstick-filter)))
+    
+(defun tellstick-filter (process string)
+  (with-current-buffer (process-buffer process)
+    (goto-char (point-max))
+    (insert string)
+    (goto-char (point-min))
+    (while (re-search-forward "^\\+W.*\r\n" nil t)
+      (let ((string (match-string 0)))
+	(delete-region (match-beginning 0) (match-end 0))
+	(tellstick-handle-input string)))))
+
+(defvar tellstick-last-input 0)
+(defvar tellstick-previous-input nil)
+
+(defun tellstick-handle-input (string)
+  ;;(message "%s" string)
+  (when (and (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
+	     (or (not (equal tellstick-previous-input (match-string 1 string)))
+		 (> (- (float-time) tellstick-last-input) 1)))
+    (setq tellstick-last-input (float-time)
+	  tellstick-previous-input (match-string 1 string))
+    (tellstick-execute-input (match-string 1 string))))
+
+(defun tellstick-execute-input (data)
+  (message "%s" data)
+  (dolist (action (cdr (assoc data tellstick-actions)))
+    (eval action)))
 
 (defun tellstick-switch-id (id action &optional dim)
   (when (numberp action)
@@ -283,8 +337,11 @@ Valid values are `uno' (the classic stick) and `duo'.")
     (setq action 'off)))
   (tellstick-switch-room '(tv living bedroom kitchen) action))
 
-(defun tellstick-server ()
+(defun tellstick-server (&optional model)
   (interactive)
+  (when (eq model :duo)
+    (setq tellstick-model 'duo)
+    (tellstick-start-reading))
   (let ((system (car (split-string (system-name) "[.]"))))
     (setq server-use-tcp t
 	  server-host (system-name)
@@ -294,3 +351,4 @@ Valid values are `uno' (the classic stick) and `duo'.")
 (provide 'tellstick)
 
 ;;; tellstick.el ends here
+;(progn (load "tellstick") (tellstick-server :duo))
