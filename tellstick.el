@@ -58,7 +58,10 @@ Valid values are `uno' (the classic stick) and `duo'.")
 (defun tellstick-get-semaphore (semaphore)
   "Wait until SEMAPHORE is released."
   (while (/= (length (nconc (symbol-value semaphore) (list nil))) 2)
-    (sleep-for 0.1)))
+    (message "Waiting for semaphore")
+    (with-current-buffer (get-buffer "*tellstick*")
+      (message "Wait: %s" (buffer-string)))
+    (accept-process-output nil 0 100)))
 
 (defun tellstick-release-semaphore (semaphore)
   "Release SEMAPHORE."
@@ -67,8 +70,11 @@ Valid values are `uno' (the classic stick) and `duo'.")
 (defmacro tellstick-with-semaphore (&rest forms)
   `(unwind-protect
        (progn
-	 (tellstick-get-semaphore 'tellstick-semaphore)
-	 ,@forms)
+	 (condition-case var
+	     (progn
+	       (tellstick-get-semaphore 'tellstick-semaphore)
+	       ,@forms)
+	   (quit (debug))))
      (tellstick-release-semaphore 'tellstick-semaphore)))
 
 (put 'tellstick-with-semaphore 'lisp-indent-function 0)
@@ -180,14 +186,15 @@ Valid values are `uno' (the classic stick) and `duo'.")
       nresult)))
 
 (defun tellstick-send (&rest commands)
-  (tellstick-with-semaphore
-    (cond
-     (tellstick-process
-      (tellstick-send-process tellstick-process commands))
-     ((fboundp 'make-serial-process)
-      (tellstick-send-serial commands))
-     (t
-      (tellstick-send-cu commands)))))
+  (when (= (length tellstick-semaphore) 1)
+    (tellstick-with-semaphore
+      (cond
+       (tellstick-process
+	(tellstick-send-process tellstick-process commands))
+       ((fboundp 'make-serial-process)
+	(tellstick-send-serial commands))
+       (t
+	(tellstick-send-cu commands))))))
 
 (defun tellstick-send-cu (commands)
   (with-temp-buffer
@@ -229,12 +236,20 @@ Valid values are `uno' (the classic stick) and `duo'.")
 (defun tellstick-send-process (process commands)
   (with-current-buffer (process-buffer process)
     (dolist (command commands)
-      (erase-buffer)
-      (process-send-string process command)
-      (while (not (save-excursion
-		    (goto-char (point-min))
-		    (search-forward "+T\r" nil t)))
-	(accept-process-output process 0 100)))
+      (let ((times 100))
+	(goto-char (point-min))
+	(while (search-forward "+T\r\n" nil t)
+	  (delete-region (match-beginning 0) (match-end 0)))
+	(process-send-string process command)
+	(while (and (not (save-excursion
+			   (goto-char (point-min))
+			   (search-forward "+T\r\n" nil t)))
+		    (> (decf times) 0))
+	  (accept-process-output process 0 100)
+	  (redisplay t)
+	  (message "W: %s" (buffer-string)))
+	(when (zerop times)
+	  (message "Bailed after sending command"))))
     (buffer-string)))
 
 (defvar tellstick-process nil)
@@ -247,7 +262,9 @@ Valid values are `uno' (the classic stick) and `duo'.")
     (setq tellstick-process
 	  (make-serial-process
 	   :port "/dev/tellstick"
-	   :speed 9600
+	   :speed (if (eq tellstick-model 'duo)
+		      9600
+		    4800)
 	   :coding 'no-conversion
 	   :buffer (current-buffer)))
     (set-process-filter tellstick-process 'tellstick-filter)))
