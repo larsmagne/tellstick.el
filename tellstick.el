@@ -51,6 +51,12 @@
   "The model plugged in.
 Valid values are `uno' (the classic stick) and `duo'.")
 
+(defvar tellstick-room-ids nil
+  "What switches are in which rooms.
+This is a alist on the form
+ \((tv 34 55)
+   (bedroom 56 67))")
+
 ;;; Somewhat bogus semaphores.
 
 (defvar tellstick-semaphore '(nil))
@@ -320,20 +326,7 @@ Valid values are `uno' (the classic stick) and `duo'.")
     (when (atom rooms)
       (setq rooms (list rooms)))
     (dolist (room rooms)
-      (dolist (id (cond
-		   ((eq room 'tv)
-		    '(10 9 17))
-		   ((eq room 'kitchen)
-		    '(3 1))
-		   ((eq room 'hall)
-		    '(11 13))
-		   ((eq room 'office)
-		    '(14 15 16 21 22))
-		   ((or (eq room 'living)
-			(eq room :living))
-		    '(4 5 8 18))
-		   ((eq room 'bedroom)
-		    '(2 6 12))))
+      (dolist (id (cdr (assq room tellstick-room-ids)))
 	(push (tellstick-make-command
 	       tellstick-room-code id action
 	       (and (eq action 'on)
