@@ -317,7 +317,9 @@ This is a alist on the form
 	 (not (member id tellstick-non-dimmers))
 	 15))))
 
-(defun tellstick-switch-room (rooms action)
+(defun tellstick-switch-room (rooms action &optional times)
+  "Perform ACTION (off/on) on ROOMS.
+If TIMES is non-nil, it should be a number of times to do this."
   (when (eq action :off)
     (setq action 'off))
   (when (eq action :on)
@@ -325,16 +327,17 @@ This is a alist on the form
   (let ((strings nil))
     (when (atom rooms)
       (setq rooms (list rooms)))
-    (dolist (room rooms)
-      (dolist (id (cdr (assq room tellstick-room-ids)))
-	(push (tellstick-make-command
-	       tellstick-room-code id action
-	       (and (eq action 'on)
-		    ;; If it's a dimmer, we have to send the signal
-		    ;; strength.
-		    (not (member id tellstick-non-dimmers))
-		    15))
-	      strings)))
+    (dotimes (i (or times 1))
+      (dolist (room rooms)
+	(dolist (id (cdr (assq room tellstick-room-ids)))
+	  (push (tellstick-make-command
+		 tellstick-room-code id action
+		 (and (eq action 'on)
+		      ;; If it's a dimmer, we have to send the signal
+		      ;; strength.
+		      (not (member id tellstick-non-dimmers))
+		      15))
+		strings))))
     (apply #'tellstick-send strings)))
 
 (defun tellstick-switch (action)
