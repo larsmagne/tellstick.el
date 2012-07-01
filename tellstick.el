@@ -252,8 +252,7 @@ This is a alist on the form
 			   (search-forward "+T\r\n" nil t)))
 		    (> (decf times) 0))
 	  (accept-process-output process 0 100)
-	  (redisplay t)
-	  (message "W: %s" (buffer-string)))
+	  (redisplay t))
 	(when (zerop times)
 	  (message "Bailed after sending command"))))
     (buffer-string)))
@@ -289,7 +288,6 @@ This is a alist on the form
 (defvar tellstick-previous-input nil)
 
 (defun tellstick-handle-input (string)
-  ;;(message "%s" string)
   (when (and (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
 	     (or (not (equal tellstick-previous-input (match-string 1 string)))
 		 (> (- (float-time) tellstick-last-input) 1)))
@@ -298,7 +296,6 @@ This is a alist on the form
     (tellstick-execute-input (match-string 1 string))))
 
 (defun tellstick-execute-input (data)
-  (message "%s" data)
   (dolist (action (cdr (assoc data tellstick-actions)))
     (eval action)))
 
