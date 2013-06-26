@@ -300,6 +300,10 @@ This is a alist on the form
     (eval action)))
 
 (defun tellstick-switch-id (id action &optional dim)
+  (when (eq action :on)
+    (setq action 'on))
+  (when (eq action :off)
+    (setq action 'off))
   (when (numberp action)
     (setq action
 	  (if (zerop action)
