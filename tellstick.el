@@ -57,6 +57,9 @@ This is a alist on the form
  \((tv 34 55)
    (bedroom 56 67))")
 
+(defvar tellstick-central-server nil
+  "The server that receives all commands and decides what to do about it.")
+
 ;;; Somewhat bogus semaphores.
 
 (defvar tellstick-semaphore '(nil))
@@ -284,20 +287,74 @@ This is a alist on the form
 	(delete-region (match-beginning 0) (match-end 0))
 	(tellstick-handle-input string)))))
 
+(defun tellstick-handle-input (string)
+  (setq string (replace-regexp-in-string "[\r\n]" "" string))
+  (message "Got: '%s'" string)
+  (when (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
+    (tellstick-queue-action
+     `(server-eval-at ,(concat "tellstick-" tellstick-central-server)
+		      (tellstick-receive-command ,string)))))
+
+(defun tellstick-transmit (data)
+  (tellstick-send data))
+
+(defvar tellstick-action-queue nil)
+
+(defun tellstick-queue-action (action)
+  (push (cons (float-time) action) tellstick-action-queue))
+
+(defun tellstick-queue-runner ()
+  (let ((action (car tellstick-action-queue)))
+    (when (and action
+	       (> (- (float-time) (car action)) 0.5))
+      (setq tellstick-action-queue nil)
+      (message "Executing %S" action)
+      (apply 'funcall (cdr action)))))
+
+(defun tellstick-central-queue ()
+  (when tellstick-action-queue
+    (let ((action (car (last tellstick-action-queue))))
+      (setq tellstick-action-queue nil)
+      (message "Executing %S" action)
+      (apply 'funcall action))))
+
 (defvar tellstick-last-input 0)
 (defvar tellstick-previous-input nil)
 
-(defun tellstick-handle-input (string)
+(defun tellstick-receive-command (string)
+  (message "Central got: '%s'" string)
   (when (and (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
 	     (or (not (equal tellstick-previous-input (match-string 1 string)))
 		 (> (- (float-time) tellstick-last-input) 1)))
     (setq tellstick-last-input (float-time)
 	  tellstick-previous-input (match-string 1 string))
-    (tellstick-execute-input (match-string 1 string))))
-
+    (tellstick-queue-action
+     `(tellstick-execute-input ,(match-string 1 string)))))
+  
 (defun tellstick-execute-input (data)
-  (dolist (action (cdr (assoc data tellstick-actions)))
-    (eval action)))
+  (let ((action (cdr (assoc data tellstick-actions))))
+    (cond
+     ((not action)
+      (message "No action for command '%s'" data))
+     ((consp (car action))
+      (eval (car action)))
+     (t
+      (let ((command (pop action))
+	    codes)
+	(dolist (room action)
+	  (setq codes (append codes (cdr (assq room tellstick-room-ids)))))
+	(dolist (host tellstick-transmitters)
+	  (dolist (id codes)
+	    (server-eval-at
+	     (concat "tellstick-" host)
+	     `(tellstick-transmit
+	       ,(tellstick-make-command
+		 tellstick-room-code id command
+		 (and (eq command 'on)
+		      ;; If it's a dimmer, we have to send the signal
+		      ;; strength.
+		      (not (member id tellstick-non-dimmers))
+		      15)))))))))))
 
 (defun tellstick-switch-id (id action &optional dim)
   (when (eq action :on)
@@ -356,10 +413,20 @@ If TIMES is non-nil, it should be a number of times to do this."
   (when (eq model :duo)
     (setq tellstick-model 'duo)
     (tellstick-start-reading))
+  (run-with-timer 0.1 0.1 'tellstick-queue-runner)
   (let ((system (car (split-string (system-name) "[.]"))))
     (setq server-use-tcp t
 	  server-host (system-name)
-	  server-name system)
+	  server-name (concat "tellstick-" system))
+    (server-start)))
+
+(defun tellstick-central-server ()
+  (interactive)
+  (run-with-timer 0.1 0.1 'tellstick-central-queue)
+  (let ((system (car (split-string (system-name) "[.]"))))
+    (setq server-use-tcp t
+	  server-host (system-name)
+	  server-name (concat "tellstick-" system))
     (server-start)))
 
 (provide 'tellstick)
