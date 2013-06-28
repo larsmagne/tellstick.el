@@ -296,6 +296,7 @@ This is a alist on the form
 		      (tellstick-receive-command ,string)))))
 
 (defun tellstick-transmit (data)
+  (message "Transmitting %s" data)
   (tellstick-send data))
 
 (defvar tellstick-action-queue nil)
@@ -336,24 +337,40 @@ This is a alist on the form
     (cond
      ((not action)
       (message "No action for command '%s'" data))
-     ((consp (car action))
+     ((and (consp (car action))
+	   (consp (cdar action)))
       (eval (car action)))
      (t
-      (let ((command (pop action))
+      (let ((command (car action))
 	    codes)
-	(dolist (room action)
-	  (setq codes (append codes (cdr (assq room tellstick-room-ids)))))
+	(if (consp command)
+	    ;; On the form '((on . room-bedroom) (off . apartment)).
+	    (dolist (elem action)
+	      (setq codes
+		    (append codes
+			    (mapcar
+			     (lambda (id)
+			       (cons (car elem) id))
+			     (cdr (assq (cdr elem) tellstick-room-ids))))))
+	  ;; On the form '(on apartment room-bedroom).
+	  (pop action)
+	  (dolist (room action)
+	    (setq codes (append codes
+				(mapcar
+				 (lambda (id)
+				   (cons command id))
+				 (cdr (assq room tellstick-room-ids)))))))
 	(dolist (host tellstick-transmitters)
-	  (dolist (id codes)
+	  (dolist (elem codes)
 	    (server-eval-at
 	     (concat "tellstick-" host)
 	     `(tellstick-transmit
 	       ,(tellstick-make-command
-		 tellstick-room-code id command
+		 tellstick-room-code (cdr elem) (car elem)
 		 (and (eq command 'on)
 		      ;; If it's a dimmer, we have to send the signal
 		      ;; strength.
-		      (not (member id tellstick-non-dimmers))
+		      (not (member (cdr elem) tellstick-non-dimmers))
 		      15)))))))))))
 
 (defun tellstick-switch-id (id action &optional dim)
@@ -375,7 +392,7 @@ This is a alist on the form
 	 (not (member id tellstick-non-dimmers))
 	 15))))
 
-(defun tellstick-switch-room (rooms action &optional times)
+(defun tellstick-switch-room (rooms action)
   "Perform ACTION (off/on) on ROOMS.
 If TIMES is non-nil, it should be a number of times to do this."
   (when (eq action :off)
@@ -385,18 +402,21 @@ If TIMES is non-nil, it should be a number of times to do this."
   (let ((strings nil))
     (when (atom rooms)
       (setq rooms (list rooms)))
-    (dotimes (i (or times 1))
+    (let (codes)
       (dolist (room rooms)
-	(dolist (id (cdr (assq room tellstick-room-ids)))
-	  (push (tellstick-make-command
-		 tellstick-room-code id action
-		 (and (eq action 'on)
-		      ;; If it's a dimmer, we have to send the signal
-		      ;; strength.
-		      (not (member id tellstick-non-dimmers))
-		      15))
-		strings))))
-    (apply #'tellstick-send strings)))
+	(setq codes (append codes (cdr (assq room tellstick-room-ids)))))
+      (dolist (host tellstick-transmitters)
+	(dolist (id codes)
+	  (server-eval-at
+	   (concat "tellstick-" host)
+	   `(tellstick-transmit
+	     ,(tellstick-make-command
+	       tellstick-room-code id action
+	       (and (eq action 'on)
+		    ;; If it's a dimmer, we have to send the signal
+		    ;; strength.
+		    (not (member id tellstick-non-dimmers))
+		    15)))))))))
 
 (defun tellstick-switch (action)
   (cond
