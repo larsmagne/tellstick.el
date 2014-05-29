@@ -290,7 +290,10 @@ This is a alist on the form
 (defun tellstick-handle-input (string)
   (setq string (replace-regexp-in-string "[\r\n]" "" string))
   (message "Got: '%s'" string)
-  (when (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
+  (when (and (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
+	     ;; These are spurious data points that should be filtered
+	     ;; out.
+	     (not (string-max "data:0x0;$" string)))
     (tellstick-queue-action
      `(server-eval-at ,(concat "tellstick-" tellstick-central-server)
 		      (tellstick-receive-command ,string)))))
@@ -307,7 +310,7 @@ This is a alist on the form
 (defun tellstick-queue-runner ()
   (let ((action (car tellstick-action-queue)))
     (when (and action
-	       (> (- (float-time) (car action)) 0.5))
+	       (> (- (float-time) (car action)) 0.2))
       (setq tellstick-action-queue nil)
       (message "Executing %S" action)
       (apply 'funcall (cdr action)))))
@@ -317,7 +320,7 @@ This is a alist on the form
     (let ((action (car (last tellstick-action-queue))))
       (setq tellstick-action-queue nil)
       (message "Executing %S" action)
-      (apply 'funcall action))))
+      (apply 'funcall (cdr action)))))
 
 (defvar tellstick-last-input 0)
 (defvar tellstick-previous-input nil)
@@ -326,7 +329,8 @@ This is a alist on the form
   (message "Central got: '%s'" string)
   (when (and (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
 	     (or (not (equal tellstick-previous-input (match-string 1 string)))
-		 (> (- (float-time) tellstick-last-input) 1)))
+		 (> (- (float-time) tellstick-last-input) 1))
+	     (not (equal (match-string 1 string) "0")))
     (setq tellstick-last-input (float-time)
 	  tellstick-previous-input (match-string 1 string))
     (tellstick-queue-action
@@ -339,6 +343,7 @@ This is a alist on the form
       (message "No action for command '%s'" data))
      ((and (consp (car action))
 	   (consp (cdar action)))
+      (message "Executing %s" (car action))
       (eval (car action)))
      (t
       (let ((command (car action))
@@ -361,13 +366,14 @@ This is a alist on the form
 				   (cons command id))
 				 (cdr (assq room tellstick-room-ids)))))))
 	(dolist (host tellstick-transmitters)
+	  (message "Sending command to %s" host)
 	  (dolist (elem codes)
 	    (server-eval-at
 	     (concat "tellstick-" host)
 	     `(tellstick-transmit
 	       ,(tellstick-make-command
 		 tellstick-room-code (cdr elem) (car elem)
-		 (and (eq command 'on)
+		 (and (eq (car elem) 'on)
 		      ;; If it's a dimmer, we have to send the signal
 		      ;; strength.
 		      (not (member (cdr elem) tellstick-non-dimmers))
@@ -406,6 +412,7 @@ If TIMES is non-nil, it should be a number of times to do this."
       (dolist (room rooms)
 	(setq codes (append codes (cdr (assq room tellstick-room-ids)))))
       (dolist (host tellstick-transmitters)
+	(message "Sending command to %s" host)
 	(dolist (id codes)
 	  (server-eval-at
 	   (concat "tellstick-" host)
