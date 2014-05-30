@@ -293,7 +293,7 @@ This is a alist on the form
   (when (and (string-match "arctech.*data:0x\\([0-9A-F]+\\)" string)
 	     ;; These are spurious data points that should be filtered
 	     ;; out.
-	     (not (string-max "data:0x0;$" string)))
+	     (not (string-match "data:0x0;$" string)))
     (tellstick-queue-action
      `(server-eval-at ,(concat "tellstick-" tellstick-central-server)
 		      (tellstick-receive-command ,string)))))
