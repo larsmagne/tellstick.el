@@ -24,14 +24,13 @@
 
 ;; Usage example:
 ;;
-;; (tellstick-send
-;;   (tellstick-make-command tellstick-room-code 10 'on nil))
+;; (tellstick-send (tellstick-make-command tellstick-room-code 10 'on nil))
 ;;
 ;; This switches unit 10 on, without using dimming.
 ;;
 ;; To make a device learn that it's device 10 in room code 2342, say
 ;;
-;; (tellstick-learn 2342 10)
+;; (tellstick-learn tellstick-room-code 10)
 ;;
 ;; after putting the device in learning state.
 
@@ -46,6 +45,8 @@
   "Actions to be evaled when a command is read.")
 
 (defvar tellstick-non-dimmers nil)
+
+(defvar tellstick-dimmers nil)
 
 (defvar tellstick-model 'uno
   "The model plugged in.
@@ -376,7 +377,7 @@ This is a alist on the form
 		 (and (eq (car elem) 'on)
 		      ;; If it's a dimmer, we have to send the signal
 		      ;; strength.
-		      (not (member (cdr elem) tellstick-non-dimmers))
+		      (member (cdr elem) tellstick-dimmers)
 		      15)))))))))))
 
 (defun tellstick-switch-id (id action &optional dim)
@@ -395,7 +396,7 @@ This is a alist on the form
     (and (eq action 'on)
 	 ;; If it's a dimmer, we have to send the signal
 	 ;; strength.
-	 (not (member id tellstick-non-dimmers))
+	 (member id tellstick-dimmers)
 	 15))))
 
 (defun tellstick-switch-room (rooms action)
@@ -422,7 +423,7 @@ If TIMES is non-nil, it should be a number of times to do this."
 	       (and (eq action 'on)
 		    ;; If it's a dimmer, we have to send the signal
 		    ;; strength.
-		    (not (member id tellstick-non-dimmers))
+		    (member id tellstick-dimmers)
 		    15)))))))))
 
 (defun tellstick-switch (action)
