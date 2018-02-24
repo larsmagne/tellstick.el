@@ -413,7 +413,7 @@ If TIMES is non-nil, it should be a number of times to do this."
       (dolist (room rooms)
 	(setq codes (append codes (cdr (assq room tellstick-room-ids)))))
       (dolist (host tellstick-transmitters)
-	(message "Sending command to %s" host)
+	(message "%s Sending command to %s" (format-time-string "%FT%T") host)
 	(dolist (id codes)
 	  (server-eval-at
 	   (concat "tellstick-" host)
