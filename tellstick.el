@@ -112,21 +112,19 @@ This is a alist on the form
    "+"))
 
 (defun tellstick-learn (house unit)
-  (when (> unit 16)
-    (setq house (+ house (/ unit 16))
-	  unit (mod unit 16)))
   ;; Apparently you need to send the learning code about five times
   ;; for the device to pick it up.
   (dotimes (i 5)
     (tellstick-send
-     (tellstick-make-command house unit 'learn nil))
-    (sit-for 0.2)))
+     (tellstick-make-command house unit 'learn nil))))
 
 (defun tellstick-format-command (house unit command dim)
   ;; There can be only 16 units per puny house.  If we get a unit code
   ;; higher than 16, then continue on to the next house code.
   (when (> unit 16)
-    (setq house (+ house (/ unit 16))
+    ;; The new Telldus switches needs certain bits blank which means
+    ;; that only every 16 house code is valid.
+    (setq house (+ house (* (/ unit 16) 16))
 	  unit (mod unit 16)))
   (concat
    (tellstick-double-binarify house 26)
