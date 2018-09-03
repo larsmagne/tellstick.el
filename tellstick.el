@@ -196,36 +196,9 @@ This is a alist on the form
 (defun tellstick-send (&rest commands)
   (when (= (length tellstick-semaphore) 1)
     (tellstick-with-semaphore
-      (cond
-       (tellstick-process
-	(tellstick-send-process tellstick-process commands))
-       ((fboundp 'make-serial-process)
-	(tellstick-send-serial commands))
-       (t
-	(tellstick-send-cu commands))))))
-
-(defun tellstick-send-cu (commands)
-  (with-temp-buffer
-    (let ((process (start-process
-		    "tellstick"
-		    (current-buffer)
-		    "cu" "-l" "/dev/tellstick" "-s" "4800" "dir")))
-      (dolist (command commands)
-	(process-send-string process command)
-	(process-send-string process "\r\n")
-	(while (not (save-excursion
-		      (goto-char (point-min))
-		      (re-search-forward "^\\+.*\r" nil t)))
-	  (accept-process-output process 0 100)
-	  ;;(message "%s" (buffer-string))
-	  )
-	(erase-buffer))
-      (process-send-string process "\r~.\r")
-      (prog1
-	  (buffer-string)
-	(delete-process process)
-	(when (file-exists-p "/var/lock/LCK..tellstick")
-	  (delete-file "/var/lock/LCK..tellstick"))))))
+      (if tellstick-process
+	  (tellstick-send-process tellstick-process commands)
+	(tellstick-send-serial commands)))))
 
 (defun tellstick-send-serial (commands)
   (with-temp-buffer
@@ -294,7 +267,7 @@ This is a alist on the form
 	     ;; out.
 	     (not (string-match "data:0x0;$" string)))
     (tellstick-queue-action
-     `(server-eval-at ,(concat "tellstick-" tellstick-central-server)
+     `(server-eval-at ,(concat "tellstick-central-" tellstick-central-server)
 		      (tellstick-receive-command ,string)))))
 
 (defun tellstick-transmit (data)
@@ -452,7 +425,7 @@ If TIMES is non-nil, it should be a number of times to do this."
   (let ((system (car (split-string (system-name) "[.]"))))
     (setq server-use-tcp t
 	  server-host (system-name)
-	  server-name (concat "tellstick-" system))
+	  server-name (concat "tellstick-central-" system))
     (server-start)))
 
 (provide 'tellstick)
