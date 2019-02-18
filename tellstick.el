@@ -37,6 +37,7 @@
 ;;; Code:
 
 (require 'cl)
+(require 'eval-server)
 
 (defvar tellstick-room-code 1
   "The code you're using for your units.")
@@ -267,8 +268,7 @@ This is a alist on the form
 	     ;; out.
 	     (not (string-match "data:0x0;$" string)))
     (tellstick-queue-action
-     `(server-eval-at ,(concat "tellstick-central-" tellstick-central-server)
-		      (tellstick-receive-command ,string)))))
+     `(eval-at "stories" 8701 (tellstick-receive-command ,string)))))
 
 (defun tellstick-transmit (data)
   (message "Transmitting %s" data)
@@ -340,8 +340,8 @@ This is a alist on the form
 	(dolist (host tellstick-transmitters)
 	  (message "Sending command to %s" host)
 	  (dolist (elem codes)
-	    (server-eval-at
-	     (concat "tellstick-" host)
+	    (eval-at
+	     host 8700
 	     `(tellstick-transmit
 	       ,(tellstick-make-command
 		 tellstick-room-code (cdr elem) (car elem)
@@ -384,10 +384,11 @@ If TIMES is non-nil, it should be a number of times to do this."
       (dolist (room rooms)
 	(setq codes (append codes (cdr (assq room tellstick-room-ids)))))
       (dolist (host tellstick-transmitters)
-	(message "%s Sending command to %s" (format-time-string "%FT%T") host)
+	(message "%s Sending %s command to %s"
+		 (format-time-string "%FT%T") action host)
 	(dolist (id codes)
-	  (server-eval-at
-	   (concat "tellstick-" host)
+	  (eval-at
+	   host 8700
 	   `(tellstick-transmit
 	     ,(tellstick-make-command
 	       tellstick-room-code id action
@@ -413,20 +414,15 @@ If TIMES is non-nil, it should be a number of times to do this."
     (setq tellstick-model 'duo)
     (tellstick-start-reading))
   (run-with-timer 0.1 0.1 'tellstick-queue-runner)
-  (let ((system (car (split-string (system-name) "[.]"))))
-    (setq server-use-tcp t
-	  server-host (system-name)
-	  server-name (concat "tellstick-" system))
-    (server-start)))
+  (eval-server-start 8700 '(tellstick-transmit
+			    tellstick-switch-id)))
 
 (defun tellstick-central-server ()
   (interactive)
   (run-with-timer 0.1 0.1 'tellstick-central-queue)
-  (let ((system (car (split-string (system-name) "[.]"))))
-    (setq server-use-tcp t
-	  server-host (system-name)
-	  server-name (concat "tellstick-central-" system))
-    (server-start)))
+  (eval-server-start 8701 '(tellstick-switch-room
+			    tellstick-receive-command
+			    tellstick-execute-input)))
 
 (provide 'tellstick)
 
