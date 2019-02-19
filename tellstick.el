@@ -415,6 +415,7 @@ If TIMES is non-nil, it should be a number of times to do this."
     (tellstick-start-reading))
   (run-with-timer 0.1 0.1 'tellstick-queue-runner)
   (eval-server-start 8700 '(tellstick-transmit
+			    tellstick-switch-room
 			    tellstick-switch-id)))
 
 (defun tellstick-central-server ()
