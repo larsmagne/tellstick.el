@@ -268,7 +268,7 @@ This is a alist on the form
 	     ;; out.
 	     (not (string-match "data:0x0;$" string)))
     (tellstick-queue-action
-     `(eval-at "stories" 8701 (tellstick-receive-command ,string)))))
+     `(eval-at "lights" "stories" 8701 (tellstick-receive-command ,string)))))
 
 (defun tellstick-transmit (data)
   (message "Transmitting %s" data)
@@ -341,7 +341,7 @@ This is a alist on the form
 	  (message "Sending command to %s" host)
 	  (dolist (elem codes)
 	    (eval-at
-	     host 8700
+	     "lights" host 8700
 	     `(tellstick-transmit
 	       ,(tellstick-make-command
 		 tellstick-room-code (cdr elem) (car elem)
@@ -388,7 +388,7 @@ If TIMES is non-nil, it should be a number of times to do this."
 		 (format-time-string "%FT%T") action host)
 	(dolist (id codes)
 	  (eval-at
-	   host 8700
+	   "lights" host 8700
 	   `(tellstick-transmit
 	     ,(tellstick-make-command
 	       tellstick-room-code id action
@@ -414,16 +414,18 @@ If TIMES is non-nil, it should be a number of times to do this."
     (setq tellstick-model 'duo)
     (tellstick-start-reading))
   (run-with-timer 0.1 0.1 'tellstick-queue-runner)
-  (eval-server-start 8700 '(tellstick-transmit
-			    tellstick-switch-room
-			    tellstick-switch-id)))
+  (start-eval-server "lights" 8700
+		     '(tellstick-transmit
+		       tellstick-switch-room
+		       tellstick-switch-id)))
 
 (defun tellstick-central-server ()
   (interactive)
   (run-with-timer 0.1 0.1 'tellstick-central-queue)
-  (eval-server-start 8701 '(tellstick-switch-room
-			    tellstick-receive-command
-			    tellstick-execute-input)))
+  (start-eval-server "lights" 8701
+		     '(tellstick-switch-room
+		       tellstick-receive-command
+		       tellstick-execute-input)))
 
 (provide 'tellstick)
 
