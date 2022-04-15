@@ -422,6 +422,7 @@ If TIMES is non-nil, it should be a number of times to do this."
 (defun tellstick-central-server ()
   (interactive)
   (run-with-timer 0.1 0.1 'tellstick-central-queue)
+  (setq eval-server-debug 1)
   (start-eval-server "lights" 8701
 		     '(tellstick-switch-room
 		       tellstick-receive-command
