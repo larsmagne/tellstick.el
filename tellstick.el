@@ -159,13 +159,13 @@ This is a alist on the form
 	    (when (zerop (mod i 2))
 	      (insert-byte acc 1)
 	      (setq acc 0))
-	    (incf i)))
+	    (cl-incf i)))
 	(buffer-string)))))
 
 (defun tellstick-binarify (number length)
   (let ((result nil))
     (while (plusp length)
-      (decf length)
+      (cl-decf length)
       (push (if (plusp (logand number 1))
 		"1"
 	      "0")
@@ -180,7 +180,7 @@ This is a alist on the form
 (defun tellstick-double-binarify (number length)
   (let ((result nil))
     (while (plusp length)
-      (decf length)
+      (cl-decf length)
       (if (plusp (logand number 1))
 	  (progn
 	    (push "0" result)
@@ -226,7 +226,7 @@ This is a alist on the form
 	(while (and (not (save-excursion
 			   (goto-char (point-min))
 			   (search-forward "+T\r\n" nil t)))
-		    (> (decf times) 0))
+		    (> (cl-decf times) 0))
 	  (accept-process-output process 0 100)
 	  (redisplay t))
 	(when (zerop times)
