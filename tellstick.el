@@ -268,7 +268,8 @@ This is a alist on the form
 	     ;; out.
 	     (not (string-match "data:0x0;$" string)))
     (tellstick-queue-action
-     `(eval-at "lights" "stories" 8701 (tellstick-receive-command ,string)))))
+     `(eval-at "lights" "rocket-sam"
+	       8701 (tellstick-receive-command ,string)))))
 
 (defun tellstick-transmit (data)
   (message "Transmitting %s" data)
