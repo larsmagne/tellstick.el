@@ -36,7 +36,6 @@
 
 ;;; Code:
 
-(require 'cl)
 (require 'eval-server)
 
 (defvar tellstick-room-code 1
@@ -152,7 +151,7 @@ This is a alist on the form
 	    (acc 9))
 	(while (< i (length string))
 	  (let ((char (aref string i)))
-	    (setq acc (logior (lsh acc 4)
+	    (setq acc (logior (ash acc 4)
 			      (if (equal char ?1)
 				  8
 				10)))
@@ -164,13 +163,13 @@ This is a alist on the form
 
 (defun tellstick-binarify (number length)
   (let ((result nil))
-    (while (plusp length)
+    (while (cl-plusp length)
       (cl-decf length)
-      (push (if (plusp (logand number 1))
+      (push (if (cl-plusp (logand number 1))
 		"1"
 	      "0")
 	    result)
-      (setq number (lsh number -1)))
+      (setq number (ash number -1)))
     (let ((nresult ""))
       (dolist (elem (reverse result))
 	(setq nresult
@@ -179,20 +178,22 @@ This is a alist on the form
 
 (defun tellstick-double-binarify (number length)
   (let ((result nil))
-    (while (plusp length)
+    (while (cl-plusp length)
       (cl-decf length)
-      (if (plusp (logand number 1))
+      (if (cl-plusp (logand number 1))
 	  (progn
 	    (push "0" result)
 	    (push "1" result))
 	(push "1" result)
 	(push "0" result))
-      (setq number (lsh number -1)))
+      (setq number (ash number -1)))
     (let ((nresult ""))
       (dolist (elem result)
 	(setq nresult
 	      (concat nresult elem)))
       nresult)))
+
+(defvar tellstick-process nil)
 
 (defun tellstick-send (&rest commands)
   (when (= (length tellstick-semaphore) 1)
@@ -233,11 +234,8 @@ This is a alist on the form
 	  (message "Bailed after sending command"))))
     (buffer-string)))
 
-(defvar tellstick-process nil)
-
 (defun tellstick-start-reading ()
-  (save-excursion
-    (set-buffer (get-buffer-create "*tellstick*"))
+  (with-current-buffer (get-buffer-create "*tellstick*")
     (buffer-disable-undo)
     (erase-buffer)
     (setq tellstick-process
