@@ -367,7 +367,8 @@ This is a alist on the form
 	 ;; If it's a dimmer, we have to send the signal
 	 ;; strength.
 	 (member id tellstick-dimmers)
-	 15))))
+	 15)))
+  nil)
 
 (defun tellstick-switch-room (rooms action)
   "Perform ACTION (off/on) on ROOMS.
