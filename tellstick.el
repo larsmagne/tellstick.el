@@ -210,11 +210,10 @@ This is a alist on the form
 			       9600
 			     4800)
 		    :coding 'no-conversion
-		    :buffer (current-buffer)))
-	  result)
+		    :buffer (current-buffer))))
       (tellstick-send-process process commands)
       (delete-process process)
-      result)))
+      (buffer-string))))
 
 (defun tellstick-send-process (process commands)
   (with-current-buffer (process-buffer process)
@@ -427,6 +426,30 @@ If TIMES is non-nil, it should be a number of times to do this."
 		     '(tellstick-switch-room
 		       tellstick-receive-command
 		       tellstick-execute-input)))
+
+(defun tellstick-teach-new-device (room device-id)
+  "Teach a new device the apartment, room and individual IDs."
+  (interactive
+   (list (completing-read
+	  "Room: "
+	  (cl-loop for (name . _) in tellstick-room-ids
+		   when (string-match-p "\\`room-" (symbol-name name))
+		   collect name))
+	 (read-number "Device ID: ")))
+  (unless (file-exists-p "/dev/tellstick")
+    (error "No /dev/tellstick device found"))
+  (cl-loop for (name id) in
+	   (list (list "Apartment" (cadr (assq 'apartment tellstick-room-ids)))
+		 (list "Room" (cadr (assq (intern room) tellstick-room-ids)))
+		 (list "Device" device-id))
+	   do
+	   (let ((success nil))
+	     (while (not success)
+	       (when (y-or-n-p (format "Teach %s now? " name))
+		 (tellstick-learn tellstick-room-code id))
+	       (when (y-or-n-p (format "Successfully taught %s? " name))
+		 (setq success t)))))
+  (message "Finished %s/%s" room device-id))
 
 (provide 'tellstick)
 
