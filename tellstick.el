@@ -386,7 +386,9 @@ If TIMES is non-nil, it should be a number of times to do this."
 	(message "%s Sending %s command to %s"
 		 (format-time-string "%FT%T") action host)
 	(dolist (id codes)
-	  (eval-at
+	  (message
+	   "Got response %S"
+	   (eval-at
 	   "lights" host 8700
 	   `(tellstick-transmit
 	     ,(tellstick-make-command
@@ -395,7 +397,9 @@ If TIMES is non-nil, it should be a number of times to do this."
 		    ;; If it's a dimmer, we have to send the signal
 		    ;; strength.
 		    (member id tellstick-dimmers)
-		    15)))))))))
+		    15))))))
+	(message "%s Sent %s command to %s"
+		 (format-time-string "%FT%T") action host)))))
 
 (defun tellstick-switch (action)
   (cond
@@ -421,7 +425,7 @@ If TIMES is non-nil, it should be a number of times to do this."
 (defun tellstick-central-server ()
   (interactive)
   (run-with-timer 0.1 0.1 'tellstick-central-queue)
-  (setq eval-server-debug 1)
+  (setq eval-server-debug 2000)
   (start-eval-server "lights" 8701
 		     '(tellstick-switch-room
 		       tellstick-receive-command
